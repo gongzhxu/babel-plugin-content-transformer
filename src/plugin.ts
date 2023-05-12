@@ -17,7 +17,6 @@ export type Options =  {
 
 function trackDependency (api: API, options: Options, src: string, isDirectory: boolean) {
   if (options.nocache) {
-    console.error('adding uncached dependency', src)
     // @ts-ignore
     api.addExternalDependency(src)
     return
@@ -26,20 +25,16 @@ function trackDependency (api: API, options: Options, src: string, isDirectory: 
     // @ts-ignore
     api.cache.using(() => {
       const key = statSync(src).mtimeMs
-      console.error('cache dir key', src, key)
       return key
     })
-    console.error('adding dir dependency', src)
     // @ts-ignore
     api.addExternalDependency(src)
   } else {
     // @ts-ignore
     api.cache.using(() => {
       const key = statSync(src).mtimeMs
-      console.error('cache file key', src, key)
       return key
     })
-    console.error('adding file dependency', src)
     // @ts-ignore
     api.addExternalDependency(src)
   }
@@ -48,7 +43,6 @@ function trackDependency (api: API, options: Options, src: string, isDirectory: 
 function addDependencies (api: API, options: Options, sources: string[]) {
   const fileDependencies = new Set()
   if (options.nocache) {
-    console.error('skipping cache')
     // @ts-ignore
     api.cache.never()
   }
