@@ -9,30 +9,18 @@ const fs_1 = require("fs");
 const loadFile_1 = require("./loadFile");
 const path_1 = __importDefault(require("path"));
 const loadDirectory_1 = require("./loadDirectory");
-function trackDependency(api, options, src, isDirectory) {
+function trackDependency(api, options, src) {
     if (options.nocache) {
         // @ts-ignore
         api.addExternalDependency(src);
         return;
     }
-    if (isDirectory) {
-        // @ts-ignore
-        api.cache.using(() => {
-            const key = (0, fs_1.statSync)(src).mtimeMs;
-            return key;
-        });
-        // @ts-ignore
-        api.addExternalDependency(src);
-    }
-    else {
-        // @ts-ignore
-        api.cache.using(() => {
-            const key = (0, fs_1.statSync)(src).mtimeMs;
-            return key;
-        });
-        // @ts-ignore
-        api.addExternalDependency(src);
-    }
+    // @ts-ignore
+    api.cache.using(() => {
+        return (0, utils_1.mTime)(src);
+    });
+    // @ts-ignore
+    api.addExternalDependency(src);
 }
 function addDependencies(api, options, sources) {
     const fileDependencies = new Set();
@@ -41,24 +29,21 @@ function addDependencies(api, options, sources) {
         api.cache.never();
     }
     for (const src of sources) {
-        const isDir = isDirectory(src);
-        trackDependency(api, options, src, isDir);
-        if (isDir) {
+        trackDependency(api, options, src);
+        if ((0, utils_1.isDirectory)(src)) {
             let files = (0, fs_1.readdirSync)(src, { recursive: options.recursive, encoding: 'utf-8' });
-            if (options.filter) {
-                files = files.filter(file => options.filter.test(file));
-            }
+            const subSources = [];
             for (let file of files) {
-                file = path_1.default.join(src, file);
-                fileDependencies.add(file);
-                trackDependency(api, options, file, false);
+                subSources.push(path_1.default.join(src, file));
             }
+            addDependencies(api, options, subSources);
         }
         else {
-            fileDependencies.add(src);
+            if (!options.filter || options.filter.test(src)) {
+                fileDependencies.add(src);
+            }
         }
     }
-    return fileDependencies;
 }
 function validateOptions(opts) {
     if (!opts.source) {
@@ -76,14 +61,6 @@ function validateOptions(opts) {
         throw new Error('"source" field cannot be empty');
     }
 }
-function isDirectory(path) {
-    try {
-        return (0, fs_1.statSync)(path).isDirectory();
-    }
-    catch (_a) {
-        return false;
-    }
-}
 const Plugin = function (api, options) {
     validateOptions(options);
     let sources = [];
@@ -94,7 +71,7 @@ const Plugin = function (api, options) {
         sources = options.source;
     }
     sources = sources.map(s => (0, utils_1.resolvePath)(s, process.cwd()));
-    const files = addDependencies(api, options, sources);
+    addDependencies(api, options, sources);
     const hasTransform = 'transform' in options || 'format' in options;
     return {
         visitor: {
@@ -102,13 +79,18 @@ const Plugin = function (api, options) {
                 if (p.node && p.node.source && state.file.opts.filename) {
                     const dirPath = path_1.default.dirname(state.file.opts.filename);
                     const fullPath = (0, utils_1.resolvePath)(p.node.source.value, dirPath);
-                    if (isDirectory(fullPath) && sources.includes(fullPath)) {
+                    if (!(0, utils_1.isSubDir)(sources, fullPath)) {
+                        return;
+                    }
+                    if ((0, utils_1.isDirectory)(fullPath)) {
                         // trackDependency(api, options, fullPath, true)
                         (0, loadDirectory_1.loadDirectory)(api.types, p, state, options);
                     }
-                    else if (hasTransform && files.has(fullPath)) {
+                    else if (hasTransform) {
                         // Handle transformation of a single file
-                        (0, loadFile_1.loadFile)(api.types, p, state, options);
+                        if (!options.filter || options.filter.test(fullPath)) {
+                            (0, loadFile_1.loadFile)(api.types, p, state, options);
+                        }
                     }
                 }
             }

@@ -43,7 +43,7 @@ export function loadFile (t: typeof BabelCoreNamespace.types, p: BabelCoreNamesp
   const fullPath = resolvePath(p.node.source.value, fileDir)
   const fileContents = fs.readFileSync(fullPath, 'utf-8')
   const transformedVal = transformer(fileContents)
-  
+
   p.replaceWith({
     type: 'VariableDeclaration',
     kind: 'const',

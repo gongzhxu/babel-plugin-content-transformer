@@ -27,6 +27,7 @@ exports.loadDirectory = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const escapeVarName_1 = require("./escapeVarName");
+const utils_1 = require("./utils");
 function loadDirectory(t, p, state, opts) {
     if (p.node.specifiers.length > 1) {
         throw new Error(`Only default imports are supported. Check the import statement in ${state.file.opts.filename}`);
@@ -40,11 +41,19 @@ function loadDirectory(t, p, state, opts) {
     const base = path.dirname(state.file.opts.filename);
     const fullPath = path.join(base, loc);
     const files = fs.readdirSync(fullPath);
-    const keys = [];
-    const nodes = files.filter(f => !opts.filter || opts.filter.test(f)).map(f => {
+    const dirImport = [];
+    const fileImport = [];
+    const nodes = files.map(f => {
         const key = path.basename(f).replace(path.extname(f), '');
         const identifier = t.identifier((0, escapeVarName_1.escapeVarName)(key));
-        keys.push(identifier);
+        if ((0, utils_1.isDirectory)(path.join(fullPath, f))) {
+            dirImport.push(t.objectProperty(t.stringLiteral(key), identifier));
+        }
+        else {
+            if (!opts.filter || opts.filter.test(f)) {
+                fileImport.push(identifier);
+            }
+        }
         let importPath = path.join(path.relative(base, fullPath), f);
         if (!importPath.startsWith('.')) {
             importPath = './' + importPath;
@@ -53,12 +62,17 @@ function loadDirectory(t, p, state, opts) {
             t.importNamespaceSpecifier(identifier)
         ], t.stringLiteral(importPath));
     });
-    const arrId = t.identifier(id);
-    const arrDeclaration = t.variableDeclaration('const', [
-        t.variableDeclarator(arrId, t.arrayExpression(keys))
+    const varDeclaration = t.variableDeclaration('const', [
+        t.variableDeclarator(t.identifier(id), t.objectExpression(dirImport))
     ]);
     // @ts-ignore because it's trying to stop us from replacing the import declaration with a variable declaration
-    nodes.push(arrDeclaration);
+    nodes.push(varDeclaration);
+    if (fileImport.length > 0) {
+        fileImport.push(t.identifier(id));
+        const callDeclaration = t.assignmentExpression('=', t.identifier(id), t.callExpression(t.memberExpression(t.identifier('Object'), t.identifier('assign')), fileImport));
+        // @ts-ignore because it's trying to stop us from replacing the import declaration with a variable declaration
+        nodes.push(callDeclaration);
+    }
     p.replaceWithMultiple(nodes);
 }
 exports.loadDirectory = loadDirectory;
