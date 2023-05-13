@@ -1,4 +1,5 @@
 import * as path from 'path'
+import { statSync } from 'fs'
 
 export type TransfomerDefinition = {
   format: string
@@ -27,10 +28,28 @@ export function resolvePath (p: string, dirPath: string) {
   }
 }
 
-// export function mtime(filePath) {
-//   try {
-//     return statSync(filePath).mtimeMs
-//   } catch {
-//     return null
-//   }
-// }
+export function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+export function mTime(path: string) {
+  try {
+    return statSync(path).mtimeMs
+  } catch {
+    return 0
+  }
+}
+
+export function isSubDir(sources: string[], dirPath: string): boolean  {
+  for (const source of sources) {
+    if (dirPath.startsWith(source)) {
+      return true
+    }
+  }
+
+  return false
+}

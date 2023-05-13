@@ -23,8 +23,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolvePath = exports.fixPath = void 0;
+exports.isSubDir = exports.mTime = exports.isDirectory = exports.resolvePath = exports.fixPath = void 0;
 const path = __importStar(require("path"));
+const fs_1 = require("fs");
 function fixPath(p) {
     p = path.normalize(p);
     if (p.endsWith('/')) {
@@ -48,10 +49,30 @@ function resolvePath(p, dirPath) {
     }
 }
 exports.resolvePath = resolvePath;
-// export function mtime(filePath) {
-//   try {
-//     return statSync(filePath).mtimeMs
-//   } catch {
-//     return null
-//   }
-// }
+function isDirectory(path) {
+    try {
+        return (0, fs_1.statSync)(path).isDirectory();
+    }
+    catch (_a) {
+        return false;
+    }
+}
+exports.isDirectory = isDirectory;
+function mTime(path) {
+    try {
+        return (0, fs_1.statSync)(path).mtimeMs;
+    }
+    catch (_a) {
+        return 0;
+    }
+}
+exports.mTime = mTime;
+function isSubDir(sources, dirPath) {
+    for (const source of sources) {
+        if (dirPath.startsWith(source)) {
+            return true;
+        }
+    }
+    return false;
+}
+exports.isSubDir = isSubDir;
