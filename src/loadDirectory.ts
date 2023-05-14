@@ -61,11 +61,12 @@ export function loadDirectory(t: typeof BabelCoreNamespace.types, p: BabelCoreNa
 
   if (fileImport.length > 0) {
     fileImport.push(t.identifier(id))
+    
     const callDeclaration = t.assignmentExpression('=',
       t.identifier(id),
       t.callExpression(t.memberExpression(t.identifier('Object'), t.identifier('assign')), fileImport))
     // @ts-ignore because it's trying to stop us from replacing the import declaration with a variable declaration
-    nodes.push(callDeclaration)
+    nodes.push(t.expressionStatement(callDeclaration))
   }
 
   p.replaceWithMultiple(nodes)
