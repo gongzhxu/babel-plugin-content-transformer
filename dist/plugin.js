@@ -10,11 +10,6 @@ const loadFile_1 = require("./loadFile");
 const path_1 = __importDefault(require("path"));
 const loadDirectory_1 = require("./loadDirectory");
 function trackDependency(api, options, src) {
-    if (options.nocache) {
-        // @ts-ignore
-        api.addExternalDependency(src);
-        return;
-    }
     // @ts-ignore
     api.cache.using(() => {
         return (0, utils_1.mTime)(src);
@@ -23,24 +18,19 @@ function trackDependency(api, options, src) {
     api.addExternalDependency(src);
 }
 function addDependencies(api, options, sources) {
-    const fileDependencies = new Set();
-    if (options.nocache) {
-        // @ts-ignore
-        api.cache.never();
-    }
     for (const src of sources) {
-        trackDependency(api, options, src);
         if ((0, utils_1.isDirectory)(src)) {
             let files = (0, fs_1.readdirSync)(src, { recursive: options.recursive, encoding: 'utf-8' });
             const subSources = [];
             for (let file of files) {
                 subSources.push(path_1.default.join(src, file));
             }
+            //trackDependency(api, options, src)
             addDependencies(api, options, subSources);
         }
         else {
             if (!options.filter || options.filter.test(src)) {
-                fileDependencies.add(src);
+                trackDependency(api, options, src);
             }
         }
     }
@@ -83,7 +73,6 @@ const Plugin = function (api, options) {
                         return;
                     }
                     if ((0, utils_1.isDirectory)(fullPath)) {
-                        // trackDependency(api, options, fullPath, true)
                         (0, loadDirectory_1.loadDirectory)(api.types, p, state, options);
                     }
                     else if (hasTransform) {
