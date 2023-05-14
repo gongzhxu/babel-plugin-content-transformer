@@ -11,44 +11,33 @@ type API = typeof BabelCoreNamespace
 export type Options = {
   source: string | string[]
   recursive?: boolean
-  nocache?: boolean
   filter?: { test: (path: string) => boolean }
 } & TransfomerDefinition
 
 function trackDependency(api: API, options: Options, src: string) {
-  if (options.nocache) {
-    // @ts-ignore
-    api.addExternalDependency(src)
-    return
-  }
-
   // @ts-ignore
   api.cache.using(() => {
     return mTime(src)
   })
+
   // @ts-ignore
   api.addExternalDependency(src)
 }
 
 function addDependencies(api: API, options: Options, sources: string[]) {
-  const fileDependencies = new Set()
-  if (options.nocache) {
-    // @ts-ignore
-    api.cache.never()
-  }
-
   for (const src of sources) {
-    trackDependency(api, options, src)
     if (isDirectory(src)) {
       let files = readdirSync(src, { recursive: options.recursive, encoding: 'utf-8' })
       const subSources = []
       for (let file of files) {
         subSources.push(path.join(src, file))
       }
+
+      //trackDependency(api, options, src)
       addDependencies(api, options, subSources)
     } else {
       if (!options.filter || options.filter.test(src)) {
-        fileDependencies.add(src)
+        trackDependency(api, options, src)
       }
     }
   }
@@ -76,10 +65,11 @@ export const Plugin = function (api: API, options: Options): PluginObj {
   } else {
     sources = options.source
   }
+
   sources = sources.map(s => resolvePath(s, process.cwd()))
   addDependencies(api, options, sources)
-
   const hasTransform = 'transform' in options || 'format' in options
+
   return {
     visitor: {
       ImportDeclaration(p, state) {
@@ -91,7 +81,6 @@ export const Plugin = function (api: API, options: Options): PluginObj {
           }
 
           if (isDirectory(fullPath)) {
-            // trackDependency(api, options, fullPath, true)
             loadDirectory(api.types, p, state, options)
           } else if (hasTransform) {
             // Handle transformation of a single file
